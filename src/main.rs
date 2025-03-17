@@ -1,10 +1,12 @@
 use bon::Builder;
 use clap::Parser;
+use indicatif::{ProgressBar, ProgressStyle};
 use niffler::send::from_path;
 use pfp::hash::HT;
 use pfp::parse::{LT, parse_seq, parse_seq_par};
 use rayon::{ThreadPoolBuilder, current_num_threads};
 use seq_io::fasta::{self, Record};
+use serde_json::json;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -82,7 +84,7 @@ fn merge_parse_in<P: AsRef<Path>>(
     }
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
     let w = args.w;
     let p = args.p;
@@ -106,44 +108,58 @@ fn main() {
     let files: Vec<PathBuf> = if path.is_dir() {
         let fa = OsStr::new("fa");
         let fa_cap = OsStr::new("FA");
-        WalkDir::new(&path)
+        WalkDir::new(path)
             .into_iter()
             .filter_map(Result::ok)
-            .filter(|e| match e.path().extension() {
-                Some(x) if (x == fa || x == fa_cap) => true,
-                _ => false,
-            })
+            .filter(|e| matches!(e.path().extension(), Some(x)  if (x == fa || x == fa_cap)))
             .map(|e| e.path().to_path_buf())
             .collect()
     } else {
-        std::fs::read_to_string(&path)
+        std::fs::read_to_string(path)
             .unwrap()
             .lines()
             .map(|l| PathBuf::from_str(l).unwrap())
             .collect()
     };
 
+    let sty = ProgressStyle::with_template(
+        "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+    )
+    .unwrap()
+    .progress_chars("##-");
+
+    let bar = ProgressBar::new(files.len() as u64);
+    bar.set_style(sty);
+
+    let mut tot = 0_f64;
     for entry in files {
+        bar.inc(1);
         let start_parse = Instant::now();
         merge_parse_in(w, p, entry, &mut cumulative_parse, threads);
         let elapsed = start_parse.elapsed().as_secs_f64();
-        eprintln!("Parsed in {:.02} s", elapsed);
+        tot += elapsed;
         let len_parse = cumulative_parse.parse_len;
         let len_phrases = cumulative_parse
             .dict
             .values()
             .map(|len| *len as usize)
             .sum::<usize>();
-        eprintln!("size of dictionary = {}", cumulative_parse.dict.len());
+        /*eprintln!("size of dictionary = {}", cumulative_parse.dict.len());
         eprintln!("length of the parse = {len_parse}");
         eprintln!("length of distinct phrases = {len_phrases}");
         eprintln!("pi = {}", len_parse + len_phrases);
+        */
         pi_vals.push(len_parse + len_phrases);
     }
+    bar.finish_with_message(format!("finished in {:.3} total seconds", tot));
 
     if !pi_vals.is_empty() {
         let tot = *pi_vals.last().expect("non empty") as f64;
         let pi_vals: Vec<f64> = pi_vals.iter().map(|e| (*e as f64) / tot).collect();
-        println!("pis = {:?}", pi_vals);
+        let j = json!({
+            "pis": pi_vals
+        });
+        println!("{}", serde_json::to_string_pretty(&j)?);
     }
+    Ok(())
 }

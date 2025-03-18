@@ -7,7 +7,6 @@ use pfp::parse::{LT, parse_seq, parse_seq_par};
 use rayon::{ThreadPoolBuilder, current_num_threads};
 use seq_io::fasta::{self, Record};
 use serde_json::json;
-use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::Instant;
@@ -37,18 +36,22 @@ impl CumulativeParse {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Input file (FASTA, possibly compressed)
+    /// Either a directory containing FASTA files, or a file with a list
+    /// of (FASTA) file paths
     #[arg(short, long)]
     input: String,
     /// window size
     #[arg(short, default_value_t = 10)]
     w: usize,
-    /// sparsity?
+    /// sparsity
     #[arg(short, default_value_t = 100)]
     p: usize,
     /// Number of threads [default: all]
     #[arg(short, long)]
     threads: Option<usize>,
+    /// write out normalized π values
+    #[arg(short, long)]
+    normalized: bool,
 }
 
 fn merge_parse_in<P: AsRef<Path>>(
@@ -105,14 +108,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cumulative_parse = CumulativeParse::new();
     let mut pi_vals = Vec::<usize>::new();
+    let valid_file_name = |f: &str| {
+        f.ends_with("fa")
+            || f.ends_with("FA")
+            || f.ends_with("fa.gz")
+            || f.ends_with("FA.GZ")
+            || f.ends_with("fna")
+            || f.ends_with("fna.gz")
+            || f.ends_with("FNA.GZ")
+    };
     let files: Vec<PathBuf> = if path.is_dir() {
-        let fa = OsStr::new("fa");
-        let fa_cap = OsStr::new("FA");
         WalkDir::new(path)
             .into_iter()
             .filter_map(Result::ok)
-            .filter(|e| matches!(e.path().extension(), Some(x)  if (x == fa || x == fa_cap)))
-            .map(|e| e.path().to_path_buf())
+            .filter_map(|e| {
+                if let Some(n) = e.file_name().to_str() {
+                    if valid_file_name(n) {
+                        Some(e.into_path())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
             .collect()
     } else {
         std::fs::read_to_string(path)
@@ -155,9 +174,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if !pi_vals.is_empty() {
         let tot = *pi_vals.last().expect("non empty") as f64;
-        let pi_vals: Vec<f64> = pi_vals.iter().map(|e| (*e as f64) / tot).collect();
+        let (pi_vals, pi_name): (Vec<f64>, String) = if args.normalized {
+            (
+                pi_vals.iter().map(|e| (*e as f64) / tot).collect(),
+                String::from("pis_norm"),
+            )
+        } else {
+            (
+                pi_vals.iter().map(|e| *e as f64).collect(),
+                String::from("pis"),
+            )
+        };
+
         let j = json!({
-            "pis": pi_vals
+            pi_name: pi_vals
         });
         println!("{}", serde_json::to_string_pretty(&j)?);
     }

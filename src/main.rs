@@ -117,7 +117,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             || f.ends_with("fna.gz")
             || f.ends_with("FNA.GZ")
     };
-    let files: Vec<PathBuf> = if path.is_dir() {
+    let mut files: Vec<PathBuf> = if path.is_dir() {
         WalkDir::new(path)
             .into_iter()
             .filter_map(Result::ok)
@@ -151,6 +151,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     bar.set_style(sty);
 
     let mut tot = 0_f64;
+    files.sort_unstable();
     for entry in files {
         bar.inc(1);
         let start_parse = Instant::now();

@@ -457,7 +457,7 @@ checksum = "d75b0bedcc4fe52caa0e03d9f1151a323e4aa5e2d78ba3580400cd3c9e2bc4bc"
 [[package]]
 name = "pfp"
 version = "0.1.0"
-source = "git+https://github.com/rob-p/pfp.git?branch=main#983a679ba170717ea47a7df0ab5c4ab11ad2be7a"
+source = "git+https://github.com/imartayan/pfp.git?branch=main#52083bbb41ac1aa9f9e090de81be2dd7c1c54b15"
 dependencies = [
  "rayon",
 ]

@@ -104,7 +104,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              piPFP-rs: A Rust implementation of piPFP for measuring the growth of sequence collections
+              pipfp-rs: A Rust implementation of piPFP for measuring the growth of sequence collections
             
           </span>
         </div>
@@ -236,7 +236,7 @@
           
   
   <span class="md-ellipsis">
-    piPFP-rs: A Rust implementation of piPFP for measuring the growth of sequence collections
+    pipfp-rs: A Rust implementation of piPFP for measuring the growth of sequence collections
   </span>
   
 
@@ -247,7 +247,7 @@
         
   
   <span class="md-ellipsis">
-    piPFP-rs: A Rust implementation of piPFP for measuring the growth of sequence collections
+    pipfp-rs: A Rust implementation of piPFP for measuring the growth of sequence collections
   </span>
   
 
@@ -269,9 +269,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#how-pipfp-rs-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      How pipfp-rs works
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#using-pipfp-rs" class="md-nav__link">
     <span class="md-ellipsis">
-      Using piPFP-rs
+      Using pipfp-rs
     </span>
   </a>
   
@@ -321,9 +330,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#how-pipfp-rs-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      How pipfp-rs works
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#using-pipfp-rs" class="md-nav__link">
     <span class="md-ellipsis">
-      Using piPFP-rs
+      Using pipfp-rs
     </span>
   </a>
   
@@ -353,12 +371,19 @@
                   
 
 
-<h1 id="pipfp-rs-a-rust-implementation-of-pipfp-for-measuring-the-growth-of-sequence-collections"><code>piPFP-rs</code>: A Rust implementation of piPFP for measuring the growth of sequence collections</h1>
-<p><code>piPFP-rs</code> is a Rust implementation of <code>piPFP</code><sup id="fnref:pipfp"><a class="footnote-ref" href="#fn:pipfp">2</a></sup>. It is a program to compute a quantity called <span class="arithmatex">\(\pi_{w,p}\)</span>, which measures the substring complexity of a sequence or 
+<h1 id="pipfp-rs-a-rust-implementation-of-pipfp-for-measuring-the-growth-of-sequence-collections"><code>pipfp-rs</code>: A Rust implementation of piPFP for measuring the growth of sequence collections</h1>
+<p><code>pipfp-rs</code> is a Rust implementation of <code>pipfp</code><sup id="fnref:pipfp"><a class="footnote-ref" href="#fn:pipfp">2</a></sup>. It is a program to compute a quantity called <span class="arithmatex">\(\pi_{w,p}\)</span>, which measures the substring complexity of a sequence or 
 sequence collection. By looking at how <span class="arithmatex">\(\pi_{w,p}\)</span> changes as new sequences are added to the collection, one can infer how much <em>novel</em> sequence is appearing, or how redundant
 the newly added sequences are compared to what is already present in the collection.  The parameters <span class="arithmatex">\(w\)</span> (the window size) and <span class="arithmatex">\(p\)</span> (the sampling factor) affect how  the 
 value is computed, but <span class="arithmatex">\(\pi\)</span> is fairly robust to these values as described in the preprint of Lipták et al.<sup id="fnref:preprint"><a class="footnote-ref" href="#fn:preprint">1</a></sup>.</p>
-<h2 id="using-pipfp-rs">Using <code>piPFP-rs</code></h2>
+<h2 id="how-pipfp-rs-works">How <code>pipfp-rs</code> works</h2>
+<p>The usage for <code>pipfp-rs</code> is shown below.  It has one required parameter (<code>-i</code>/<code>--input</code>) which takes either the path to a directory, or a file that lists a collection of input files (1 file per line).
+If it is provided with a directory, it will walk the directory and collect all of the files ending in <code>.fa</code>, <code>.fa.gz</code>, <code>.fna</code> or <code>.fna.gz</code> (or the capital versions of these), it will then sort the 
+file names lexicographically, and process the sequences in that order. If a list of files is provided, the files will be processed in the order they are given.</p>
+<p>To process the input <code>pipfp-rs</code> will iterate through the files, and after parsing each, will compute the current value of <span class="arithmatex">\(\pi_{w,p}\)</span> --- the substring complexity measure for the current
+sequence collection.  These <span class="arithmatex">\(\pi\)</span> values will be stored and, at the end of the program, written as a <code>JSON</code> dictinary to <code>stdout</code>.</p>
+<h2 id="using-pipfp-rs">Using <code>pipfp-rs</code></h2>
+<p>The usage of <code>pipfp-rs</code> is as follows.</p>
 <pre><code class="language-sh">Usage: pipfp-rs [OPTIONS] --input &lt;INPUT&gt;
 
 Options:
@@ -370,12 +395,17 @@ Options:
   -h, --help               Print help
   -V, --version            Print version
 </code></pre>
+<p>The <code>-i</code> parameter is the only required input.  The <code>-w</code> and <code>-p</code> parameters control the window size and sparsity factor, as describe in the pipfp preprint<sup id="fnref2:preprint"><a class="footnote-ref" href="#fn:preprint">1</a></sup>. The 
+<code>-t</code> parameter allows for multi-threaded comptuation of the <span class="arithmatex">\(pi\)</span> values, and can speed up execution if the input sequences are large or there are many.  Finally, the <code>-n</code>
+flag will write out the <span class="arithmatex">\(pi\)</span> values in normalized form (i.e. so that the largest value at the end of the array is 1.0).</p>
+<p>The output will be written to <code>stdout</code>, and consists of a <code>JSON</code> dictionary with a key <code>pis</code> whose corresponding value is an array of the compute <span class="arithmatex">\(\pi\)</span> values and 
+a key <code>norm</code> whose value is <code>true</code> if the <code>-n</code> flag was used and <code>false</code> otherwise.</p>
 <h2 id="references">References</h2>
 <div class="footnote">
 <hr />
 <ol>
 <li id="fn:preprint">
-<p>Zsuzsanna Lipták, Simone Lucà, Francesco Masillo bioRxiv 2025.02.21.639270; doi: <a href="https://doi.org/10.1101/2025.02.21.639270">https://doi.org/10.1101/2025.02.21.639270</a>&#160;<a class="footnote-backref" href="#fnref:preprint" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+<p>Zsuzsanna Lipták, Simone Lucà, Francesco Masillo bioRxiv 2025.02.21.639270; doi: <a href="https://doi.org/10.1101/2025.02.21.639270">https://doi.org/10.1101/2025.02.21.639270</a>&#160;<a class="footnote-backref" href="#fnref:preprint" title="Jump back to footnote 1 in the text">&#8617;</a><a class="footnote-backref" href="#fnref2:preprint" title="Jump back to footnote 1 in the text">&#8617;</a></p>
 </li>
 <li id="fn:pipfp">
 <p><a href="https://github.com/simolucaa/piPFP">pipfp</a>&#160;<a class="footnote-backref" href="#fnref:pipfp" title="Jump back to footnote 2 in the text">&#8617;</a></p>

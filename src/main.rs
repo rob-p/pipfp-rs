@@ -117,28 +117,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             || f.ends_with("fna.gz")
             || f.ends_with("FNA.GZ")
     };
-    let mut files: Vec<PathBuf> = if path.is_dir() {
-        WalkDir::new(path)
-            .into_iter()
-            .filter_map(Result::ok)
-            .filter_map(|e| {
-                if let Some(n) = e.file_name().to_str() {
-                    if valid_file_name(n) {
-                        Some(e.into_path())
+    let (mut files, is_dir): (Vec<PathBuf>, bool) = if path.is_dir() {
+        (
+            WalkDir::new(path)
+                .into_iter()
+                .filter_map(Result::ok)
+                .filter_map(|e| {
+                    if let Some(n) = e.file_name().to_str() {
+                        if valid_file_name(n) {
+                            Some(e.into_path())
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
-                } else {
-                    None
-                }
-            })
-            .collect()
+                })
+                .collect(),
+            true,
+        )
     } else {
-        std::fs::read_to_string(path)
-            .unwrap()
-            .lines()
-            .map(|l| PathBuf::from_str(l).unwrap())
-            .collect()
+        (
+            std::fs::read_to_string(path)
+                .unwrap()
+                .lines()
+                .map(|l| PathBuf::from_str(l).unwrap())
+                .collect(),
+            false,
+        )
     };
 
     let sty = ProgressStyle::with_template(
@@ -151,7 +157,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     bar.set_style(sty);
 
     let mut tot = 0_f64;
-    files.sort_unstable();
+    if is_dir {
+        files.sort_unstable();
+    }
     for entry in files {
         bar.inc(1);
         let start_parse = Instant::now();
@@ -164,31 +172,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .values()
             .map(|len| *len as usize)
             .sum::<usize>();
-        /*eprintln!("size of dictionary = {}", cumulative_parse.dict.len());
-        eprintln!("length of the parse = {len_parse}");
-        eprintln!("length of distinct phrases = {len_phrases}");
-        eprintln!("pi = {}", len_parse + len_phrases);
-        */
         pi_vals.push(len_parse + len_phrases);
     }
     bar.finish_with_message(format!("finished in {:.3} total seconds", tot));
 
     if !pi_vals.is_empty() {
         let tot = *pi_vals.last().expect("non empty") as f64;
-        let (pi_vals, pi_name): (Vec<f64>, String) = if args.normalized {
-            (
-                pi_vals.iter().map(|e| (*e as f64) / tot).collect(),
-                String::from("pis_norm"),
-            )
+        let pi_vals: Vec<f64> = if args.normalized {
+            pi_vals.iter().map(|e| (*e as f64) / tot).collect()
         } else {
-            (
-                pi_vals.iter().map(|e| *e as f64).collect(),
-                String::from("pis"),
-            )
+            pi_vals.iter().map(|e| *e as f64).collect()
         };
 
         let j = json!({
-            pi_name: pi_vals
+            "pis" : pi_vals,
+            "norm" : args.normalized
         });
         println!("{}", serde_json::to_string_pretty(&j)?);
     }

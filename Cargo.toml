@@ -8,7 +8,7 @@ bon = "3.5.0"
 clap = { version = "4.5.32", features = ["derive"] }
 indicatif = "0.17.11"
 niffler = "3.0.0"
-pfp = { git = "https://github.com/imartayan/pfp.git", branch = "main", version = "0.1.0" }
+pfp = { git = "https://github.com/rob-p/pfp.git", branch = "main", version = "0.1.0" }
 rayon = "1.10.0"
 rustc-hash = "2.1.1"
 seq_io = "0.3.4"
